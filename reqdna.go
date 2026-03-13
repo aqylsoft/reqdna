@@ -58,7 +58,7 @@ func FromRequest(r *http.Request, opts ...Option) Fingerprint {
 	if tlsState == nil && r.TLS != nil {
 		tlsState = r.TLS
 	}
-	tlsInfo := analyzeTLS(tlsState)
+	tlsInfo := analyzeTLS(tlsState, cfg.clientHello)
 
 	// Extract and hash IP
 	ipStr := extractIP(r.RemoteAddr, cfg.realIP)

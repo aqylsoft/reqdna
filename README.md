@@ -75,8 +75,81 @@ fp := reqdna.FromRequest(r,
     reqdna.WithTLS(r.TLS),                    // Custom TLS state
     reqdna.WithRealIP("10.0.0.1"),            // Override IP (reverse proxy)
     reqdna.WithHashSalt("my-secret-salt"),    // Custom salt for IP hashing
+    reqdna.WithClientHello(hello),            // Full JA3 fingerprinting
 )
 ```
+
+## JA3 TLS Fingerprinting
+
+JA3 is a method for creating SSL/TLS client fingerprints. Each browser/client has a unique JA3 hash based on how it negotiates TLS connections. This is very hard to spoof.
+
+### How It Works
+
+JA3 extracts from ClientHello:
+- TLS version
+- Cipher suites offered
+- TLS extensions
+- Elliptic curves
+- EC point formats
+
+Format: `Version,Ciphers,Extensions,Curves,PointFormats` → MD5 hash
+
+### Setup
+
+```go
+package main
+
+import (
+    "crypto/tls"
+    "net/http"
+    "github.com/aqylsoft/reqdna"
+)
+
+func main() {
+    // 1. Create store to capture ClientHello during TLS handshake
+    store := reqdna.NewClientHelloStore()
+
+    // 2. Wrap your TLS config
+    tlsConfig := reqdna.WrapTLSConfig(&tls.Config{
+        MinVersion: tls.VersionTLS12,
+        // ... your certificates
+    }, store)
+
+    // 3. Use JA3-aware middleware
+    mux := http.NewServeMux()
+    mux.HandleFunc("/", handler)
+
+    handler := reqdna.MiddlewareWithJA3(mux, store)
+
+    // 4. Start HTTPS server
+    server := &http.Server{
+        Addr:      ":443",
+        Handler:   handler,
+        TLSConfig: tlsConfig,
+    }
+    server.ListenAndServeTLS("cert.pem", "key.pem")
+}
+
+func handler(w http.ResponseWriter, r *http.Request) {
+    fp, _ := reqdna.Get(r.Context())
+
+    if fp.TLS.JA3 != nil {
+        fmt.Println("JA3 Hash:", fp.TLS.JA3.Hash)
+        fmt.Println("JA3 String:", fp.TLS.JA3.String)
+    }
+}
+```
+
+### Example JA3 Hashes
+
+| Client | JA3 Hash |
+|--------|----------|
+| Chrome | `b32309a26951912be7dba376398abc3b` |
+| Firefox | `839bbe3ed07fed922ded5aaf714d6842` |
+| curl | `456523fc94726331a4d5a2e1d40b2cd7` |
+| Python requests | `3b5074b1b5d032e5620f69f9f700ff0e` |
+
+JA3 fingerprints are stable per client version and very difficult to spoof.
 
 ## Fingerprint Structure
 

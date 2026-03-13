@@ -31,12 +31,3 @@ func generateStableHash(ip IPInfo, tls TLSInfo, headers HeaderInfo, device Devic
 
 	return hex.EncodeToString(h.Sum(nil))
 }
-
-// generateShortHash returns a shorter version of the hash (16 chars).
-// Useful for logging and display.
-func generateShortHash(fullHash string) string {
-	if len(fullHash) >= 16 {
-		return fullHash[:16]
-	}
-	return fullHash
-}

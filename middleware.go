@@ -2,6 +2,7 @@ package reqdna
 
 import (
 	"context"
+	"crypto/tls"
 	"net/http"
 )
 
@@ -92,4 +93,60 @@ func Handler(fn HandlerFunc, opts ...Option) http.Handler {
 		fp := FromRequest(r, opts...)
 		fn(w, r, fp)
 	})
+}
+
+// MiddlewareWithJA3 creates middleware with full JA3 fingerprinting support.
+// It automatically retrieves ClientHello from the store and includes it in fingerprint.
+//
+// Example:
+//
+//	store := reqdna.NewClientHelloStore()
+//	tlsConfig := reqdna.WrapTLSConfig(&tls.Config{...}, store)
+//
+//	handler := reqdna.MiddlewareWithJA3(mux, store)
+//
+//	server := &http.Server{
+//	    TLSConfig: tlsConfig,
+//	    Handler:   handler,
+//	}
+func MiddlewareWithJA3(next http.Handler, store *ClientHelloStore, opts ...Option) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Get ClientHello from store
+		var hello *tls.ClientHelloInfo
+		if store != nil {
+			hello = store.Get(r.RemoteAddr)
+		}
+
+		// Build options with ClientHello
+		allOpts := make([]Option, 0, len(opts)+1)
+		if hello != nil {
+			allOpts = append(allOpts, WithClientHello(hello))
+		}
+		allOpts = append(allOpts, opts...)
+
+		// Extract fingerprint
+		fp := FromRequest(r, allOpts...)
+		ctx := context.WithValue(r.Context(), FingerprintKey, fp)
+
+		// Clean up store entry after request
+		if store != nil {
+			defer store.Delete(r.RemoteAddr)
+		}
+
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// MiddlewareFuncWithJA3 creates a middleware function with JA3 support
+// for use with routers that expect func(http.Handler) http.Handler signature.
+//
+// Example with chi:
+//
+//	store := reqdna.NewClientHelloStore()
+//	r := chi.NewRouter()
+//	r.Use(reqdna.MiddlewareFuncWithJA3(store))
+func MiddlewareFuncWithJA3(store *ClientHelloStore, opts ...Option) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return MiddlewareWithJA3(next, store, opts...)
+	}
 }
