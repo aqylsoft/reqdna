@@ -9,9 +9,10 @@ type Option func(*config)
 
 // config holds all configuration options.
 type config struct {
-	tlsState *tls.ConnectionState
-	realIP   string
-	salt     string
+	tlsState    *tls.ConnectionState
+	clientHello *tls.ClientHelloInfo
+	realIP      string
+	salt        string
 }
 
 // defaultConfig returns the default configuration.
@@ -59,6 +60,21 @@ func WithHashSalt(salt string) Option {
 		if salt != "" {
 			c.salt = salt
 		}
+	}
+}
+
+// WithClientHello provides raw ClientHello for full JA3 fingerprinting.
+// Use this with ClientHelloStore and WrapTLSConfig for automatic capture.
+//
+// Example:
+//
+//	store := reqdna.NewClientHelloStore()
+//	// ... in handler:
+//	hello := store.Get(r.RemoteAddr)
+//	fp := reqdna.FromRequest(r, reqdna.WithClientHello(hello))
+func WithClientHello(hello *tls.ClientHelloInfo) Option {
+	return func(c *config) {
+		c.clientHello = hello
 	}
 }
 

@@ -24,8 +24,12 @@ type TLSInfo struct {
 	// ServerName is the SNI value (if available).
 	ServerName string `json:"server_name,omitempty"`
 
-	// Hash is a JA3-style fingerprint hash.
+	// Hash is a simplified fingerprint hash (from ConnectionState).
 	Hash string `json:"hash"`
+
+	// JA3 is the full JA3 fingerprint (if ClientHello was captured).
+	// This requires using WrapTLSConfig and WithClientHello.
+	JA3 *JA3Info `json:"ja3,omitempty"`
 
 	// Available indicates if TLS info was available.
 	Available bool `json:"available"`
@@ -40,12 +44,12 @@ const (
 )
 
 // analyzeTLS extracts TLS fingerprint from connection state.
-func analyzeTLS(state *tls.ConnectionState) TLSInfo {
+func analyzeTLS(state *tls.ConnectionState, hello *tls.ClientHelloInfo) TLSInfo {
 	if state == nil {
 		return TLSInfo{Available: false}
 	}
 
-	return TLSInfo{
+	info := TLSInfo{
 		Version:         state.Version,
 		VersionName:     tlsVersionName(state.Version),
 		CipherSuite:     state.CipherSuite,
@@ -54,6 +58,13 @@ func analyzeTLS(state *tls.ConnectionState) TLSInfo {
 		Hash:            computeTLSHash(state),
 		Available:       true,
 	}
+
+	// Add full JA3 if ClientHello is available
+	if hello != nil {
+		info.JA3 = ComputeJA3(hello)
+	}
+
+	return info
 }
 
 // computeTLSHash creates a JA3-style hash from TLS parameters.
