@@ -190,7 +190,7 @@ func TestWrapTLSConfig_Nil(t *testing.T) {
 	wrapped := WrapTLSConfig(nil, store)
 
 	if wrapped == nil {
-		t.Error("WrapTLSConfig(nil) should return non-nil config")
+		t.Fatal("WrapTLSConfig(nil) should return non-nil config")
 	}
 
 	if wrapped.GetConfigForClient == nil {
