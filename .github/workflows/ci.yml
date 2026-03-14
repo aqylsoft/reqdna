@@ -49,6 +49,12 @@ jobs:
           files: ./coverage.out
           fail_ci_if_error: false
 
+  release:
+    needs: test
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    uses: ./.github/workflows/release.yml
+    secrets: inherit
+
   benchmark:
     runs-on: ubuntu-latest
     steps:
