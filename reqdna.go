@@ -70,19 +70,20 @@ func FromRequest(r *http.Request, opts ...Option) Fingerprint {
 	// Detect device
 	deviceInfo := analyzeDevice(r.Header.Get("User-Agent"))
 
-	// Calculate bot score
-	botScore := calculateBotScore(r, deviceInfo, headerInfo, tlsInfo)
+	// Calculate bot score with breakdown
+	botScore, botBreakdown := calculateBotScore(r, deviceInfo, headerInfo, tlsInfo)
 
 	// Generate stable hash
 	hash := generateStableHash(ipInfo, tlsInfo, headerInfo, deviceInfo)
 
 	return Fingerprint{
-		Hash:        hash,
-		IP:          ipInfo,
-		TLS:         tlsInfo,
-		Headers:     headerInfo,
-		Device:      deviceInfo,
-		BotScore:    botScore,
-		RequestedAt: time.Now(),
+		Hash:              hash,
+		IP:                ipInfo,
+		TLS:               tlsInfo,
+		Headers:           headerInfo,
+		Device:            deviceInfo,
+		BotScore:          botScore,
+		BotScoreBreakdown: botBreakdown,
+		RequestedAt:       time.Now(),
 	}
 }

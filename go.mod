@@ -1,3 +1,3 @@
 module github.com/aqylsoft/reqdna
 
-go 1.26.1
+go 1.23.0
