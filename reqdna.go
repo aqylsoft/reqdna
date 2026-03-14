@@ -30,9 +30,6 @@ import (
 	"time"
 )
 
-// Version is the library version.
-const Version = "0.1.0"
-
 // FromRequest extracts a fingerprint from an HTTP request.
 // This is the main entry point for the library.
 //
